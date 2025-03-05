@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block body %}
+<h2>{{user_info.username}}</h2>
+<p>{{user_info.gender}}</p>
+<hr>
+{% for post in user_posts %}
+    <h3>{{post.title}}</h3>
+    <p>{{post.author}}</p>
+    <p>{{post.user_id}}</p>
+    <blockquote>{{post.content}}</blockquote>
+    <br>
+    <a href="{{url_for ('edit', post_id=post.id)}}">Edit Post</a>
+    <a href="{{url_for ('delete', post_id=post.id)}}">Delete Post</a>
+    
+{% endfor %}
+{% endblock %}

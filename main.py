@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin
+from flask_login import LoginManager, UserMixin, login_required, login_user, logout_user, current_user
 from flask_migrate import Migrate
 from werkzeug.security import generate_password_hash, check_password_hash
 import datetime
@@ -26,6 +26,9 @@ class Users(db.Model, UserMixin):
     def __repr__(self):
         return f"User: <{self.username}>"
 
+    def get_id(self):
+        return str(self.id)
+
 class Posts(db.Model):
     __tablename__ = "post"
     id = db.Column(db.Integer(), primary_key = True, unique = True)
@@ -39,8 +42,6 @@ class Posts(db.Model):
     def __repr__(self):
         return f"Title: <{self.title}>"
 
-
-
 with app.app_context():
     db.create_all()
 
@@ -51,12 +52,14 @@ login_manager.init_app(app)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Users.get(user_id)
+    return Users.query.get(user_id)
 
+year= datetime.datetime.now().year
 
-@app.route('/')
+@app.route('/', methods= ["POST", "GET"])
 def home():
-    return render_template('index.html')
+    blogs = Posts.query.all()
+    return render_template("index.html", blogs=blogs)
 
 
 @app.route('/signup',methods=["POST","GET"])
@@ -86,19 +89,81 @@ def login():
     email= request.form.get("email")
     password = request.form.get("password")
 
-    if request.method == "POST":
+    if request.method == "POST":  
         email_check= Users.query.filter_by(email=email).first()
         if email_check and check_password_hash(email_check.password,password):
+            login_user(email_check)
             return redirect (url_for('post'))
         else:
             return ("Invalid Email or password")
 
     return render_template('login.html')
 
-@app.route('/post')
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for("home"))
+
+@app.route('/post', methods= ["POST", "GET"])
+@login_required
 def post():
+    if request.method== "POST":
+        content = request.form.get("post")
+        author = request.form.get("author")
+        user_id =current_user.id
+        title = request.form.get("title")
+
+        title_check = Posts.query.filter_by(title = title).first()
+        if title_check:
+            return (f" A post with {title} already exists")
+        else:
+            new_post = Posts(title = title, content= content, author= author, user_id = user_id)
+            print(new_post) 
+            db.session.add(new_post)
+            db.session.commit()
+            return redirect(url_for("home"))
     return render_template('post.html')
 
+
+@app.route('/profile', methods =['GET', 'POST'])
+@login_required
+def profile():
+    user_id = current_user.id
+    user_info = Users.query.filter_by(id=user_id).first()
+    user_posts = Posts.query.filter_by(user_id=user_id).all()
+    return render_template("dashboard.html", user_info=user_info, user_posts=user_posts, current_year= year)
+
+
+@app.route('/edit/<int:post_id>', methods =["GET","POST"])
+@login_required
+def edit(post_id):
+    post_to_edit = Posts.query.get_or_404(post_id)
+    if request.method == "POST":
+        title = request.form.get ("title")
+        content = request.form.get ("content")
+        print(title,content)
+        if title:
+            post_to_edit.title = title
+        if content:
+            post_to_edit.content = content
+        else:
+            post_to_edit.title = title
+            post_to_edit.content = content
+        db.session.commit()
+        return redirect(url_for("profile"))
+    return render_template("edit.html", post=post_to_edit)
+
+
+
+
+
+@app.route('/delete', methods = ["DELETE"])
+def delete():
+    post_delete=Posts.query.get_or_404(post_delete)
+    if post_delete:
+        db.session.delete (post_delete)
+        db.session.commit()
+        return redirect(url_for("profile"))
 
 
 if __name__ == '__main__':
