@@ -7,7 +7,7 @@ import datetime
 
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI']="sqlite:///blog.db"
+app.config['SQLALCHEMY_DATABASE_URI']="postgresql://shire_user:fEmGeHCQSlftwWfZpM1Fq29xn0MvxXcL@dpg-cv6a21rtq21c73dh2gjg-a/shire"
 app.secret_key="ichascnchdcuncducbeduc"
 
 db = SQLAlchemy(app)
